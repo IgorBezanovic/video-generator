@@ -5,10 +5,35 @@ import os from 'os'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import sharp from 'sharp'
+import { execSync } from 'child_process'
 import { getObjectBuffer, uploadToS3 } from '../../lib/s3'
 import { getTemplateById } from '../../lib/templates'
 
-ffmpeg.setFfmpegPath(ffmpegStatic || 'ffmpeg')
+// Resolve a usable ffmpeg binary path:
+// Priority: FFMPEG_PATH env var -> bundled ffmpeg-static -> system `ffmpeg` on PATH
+let ffmpegPath: string | null = process.env.FFMPEG_PATH || (ffmpegStatic || null)
+try {
+  // If ffmpegStatic points to a file but it may not exist in serverless builds; verify
+  if (ffmpegPath && !require('fs').existsSync(ffmpegPath)) {
+    ffmpegPath = null
+  }
+} catch (err) {
+  ffmpegPath = null
+}
+if (!ffmpegPath) {
+  try {
+    const whichPath = execSync('which ffmpeg').toString().trim()
+    if (whichPath) ffmpegPath = whichPath
+  } catch (err) {
+    ffmpegPath = null
+  }
+}
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath)
+} else {
+  // Not setting ffmpeg path here — handler will return a helpful error if ffmpeg is needed
+  console.warn('FFmpeg binary not found. Set FFMPEG_PATH env var, install ffmpeg on PATH, or include a compatible ffmpeg binary for your host.')
+}
 
 type Body = {
   imageKey: string
