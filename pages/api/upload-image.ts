@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import formidable, { File } from 'formidable'
+import formidable from 'formidable'
+import type { File as FormidableFile } from 'formidable'
 import fs from 'fs'
 import { uploadToS3 } from '../../lib/s3'
 
@@ -24,7 +25,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { files } = await parseForm(req)
-    const file = files.file as File
+    // Handle either a single file or an array of files (formidable allows both)
+    const candidate = files.file
+    let file: FormidableFile | undefined
+    if (Array.isArray(candidate)) file = candidate[0]
+    else file = candidate as FormidableFile | undefined
+
     if (!file) return res.status(400).json({ error: 'No file provided' })
 
     const data = fs.readFileSync(file.filepath)

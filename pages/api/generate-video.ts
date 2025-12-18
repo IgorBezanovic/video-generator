@@ -40,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const stat = fs.statSync(musicFullPath)
       audioFileAvailable = stat.size > 1024
-    } catch (e) {
+    } catch (e: any) {
       audioFileAvailable = false
     }
 
@@ -131,7 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const withTextPath = path.join(tmpDir, `slide-input-${Date.now()}.png`)
           await sharp(inputImagePath).composite([{ input: Buffer.from(svg), left: 0, top: 0 }]).png().toFile(withTextPath)
           slideInput = withTextPath
-        } catch (e) {
+        } catch (e: any) {
           console.warn('Failed to composite text onto slide image; proceeding without text', e?.message)
         }
       }
@@ -164,7 +164,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       // Cleanup slide temp image if created
-      try { if (typeof slideInput !== 'undefined' && slideInput !== inputImagePath) fs.unlinkSync(slideInput) } catch (e) {}
+      try { if (typeof slideInput !== 'undefined' && slideInput !== inputImagePath) fs.unlinkSync(slideInput) } catch (e: any) {}
     }
 
     // Upload video to S3
