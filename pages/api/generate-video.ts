@@ -22,7 +22,11 @@ try {
 }
 if (!ffmpegPath) {
   try {
-    const whichPath = execSync('which ffmpeg').toString().trim()
+    // Use the node 'which' package instead of shelling out to `which` (some hosts don't have it)
+    // the package is already a dependency (used by fluent-ffmpeg), so require it safely
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const whichPkg = require('which') as { sync: (name: string) => string }
+    const whichPath = whichPkg.sync('ffmpeg')
     if (whichPath) ffmpegPath = whichPath
   } catch (err) {
     ffmpegPath = null
@@ -32,7 +36,7 @@ if (ffmpegPath) {
   ffmpeg.setFfmpegPath(ffmpegPath)
 } else {
   // Not setting ffmpeg path here — handler will return a helpful error if ffmpeg is needed
-  console.warn('FFmpeg binary not found. Set FFMPEG_PATH env var, install ffmpeg on PATH, or include a compatible ffmpeg binary for your host.')
+  console.warn('FFmpeg binary not found. Set FFMPEG_PATH env var, bundle a compatible ffmpeg binary, or install ffmpeg on PATH.')
 }
 
 type Body = {
@@ -50,6 +54,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const template = getTemplateById(templateId)
   if (!template) return res.status(400).json({ error: 'Invalid template' })
+
+  // Ensure ffmpeg is available before proceeding — provide an actionable error rather than a cryptic ENOENT
+  if (!ffmpegPath) {
+    return res.status(500).json({ error: 'FFmpeg binary not found. Set FFMPEG_PATH, install ffmpeg on PATH, or include a compatible ffmpeg binary for your host.' })
+  }
 
   try {
     // Download image from S3
